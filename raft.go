@@ -18,9 +18,9 @@ package raft
 //
 
 import (
-	"6.824/labgob"
 	"bytes"
 	"fmt"
+	"labgob/MIT6.824-Lab2-Raft/labgob"
 	"math/rand"
 
 	//	"bytes"
@@ -29,11 +29,9 @@ import (
 	"time"
 
 	//	"6.824/labgob"
-	"6.824/labrpc"
+	"labgob/MIT6.824-Lab2-Raft/labrpc"
 )
 
-
-//
 // as each Raft peer becomes aware that successive log entries are
 // committed, the peer should send an ApplyMsg to the service (or
 // tester) on the same server, via the applyCh passed to Make(). set
@@ -43,7 +41,6 @@ import (
 // in part 2D you'll want to send other kinds of messages (e.g.,
 // snapshots) on the applyCh, but set CommandValid to false for these
 // other uses.
-//
 type ApplyMsg struct {
 	CommandValid bool
 	Command      interface{}
@@ -56,9 +53,7 @@ type ApplyMsg struct {
 	SnapshotIndex int
 }
 
-//
 // A Go object implementing a single Raft peer.
-//
 type Raft struct {
 	mu        sync.Mutex          // Lock to protect shared access to this peer's state
 	peers     []*labrpc.ClientEnd // RPC end points of all peers
@@ -69,35 +64,36 @@ type Raft struct {
 	// Your data here (2A, 2B, 2C).
 	// Look at the paper's Figure 2 for a description of what
 	// state a Raft server must maintain.
-	currentTerm		int           // Server当前的term
-	voteFor			int           // Server在选举阶段的投票目标
-	logs            []LogEntry
-	nextIndexs      []int         // Leader在发送LogEntry时，对应每个其他Server，开始发送的index
-	matchIndexs     []int
-	commitIndex     int           // Server已经commit了的Log index
-	lastApplied     int           // Server已经apply了的log index
-	myStatus        Status        // Server的状态
+	currentTerm int // Server当前的term
+	voteFor     int // Server在选举阶段的投票目标
+	logs        []LogEntry
+	nextIndexs  []int // Leader在发送LogEntry时，对应每个其他Server，开始发送的index
+	matchIndexs []int
+	commitIndex int    // Server已经commit了的Log index
+	lastApplied int    // Server已经apply了的log index
+	myStatus    Status // Server的状态
 
-	timer           *time.Ticker  // timer
-	voteTimeout     time.Duration // 选举超时时间，选举超时时间是会变动的，所以定义在Raft结构体中
-	applyChan       chan ApplyMsg // 消息channel
+	timer       *time.Ticker  // timer
+	voteTimeout time.Duration // 选举超时时间，选举超时时间是会变动的，所以定义在Raft结构体中
+	applyChan   chan ApplyMsg // 消息channel
 
 	// 2D
-	lastIncludeIndex  int         // snapshot保存的最后log的index
-	lastIncludeTerm   int         // snapshot保存的最后log的term
-	snapshotCmd       []byte
+	lastIncludeIndex int // snapshot保存的最后log的index
+	lastIncludeTerm  int // snapshot保存的最后log的term
+	snapshotCmd      []byte
 }
 
 // LogEntry
 type LogEntry struct {
-	Term    int                // LogEntry中记录有log的Term
-	Cmd     interface{}        // Log的command
+	Term int         // LogEntry中记录有log的Term
+	Cmd  interface{} // Log的command
 }
 
 // 定义一个全局心跳超时时间
-var HeartBeatTimeout = 120*time.Millisecond
+var HeartBeatTimeout = 120 * time.Millisecond
 
 type Status int64
+
 const (
 	Follower Status = iota
 	Candidate
@@ -119,11 +115,9 @@ func (rf *Raft) GetState() (int, bool) {
 	return term, isleader
 }
 
-//
 // save Raft's persistent state to stable storage,
 // where it can later be retrieved after a crash and restart.
 // see paper's Figure 2 for a description of what should be persistent.
-//
 func (rf *Raft) persist() {
 	// Your code here (2C).
 	// Example:
@@ -142,10 +136,7 @@ func (rf *Raft) persist() {
 	rf.persister.SaveRaftState(data)
 }
 
-
-//
 // restore previously persisted state.
-//
 func (rf *Raft) readPersist(data []byte) {
 	if data == nil || len(data) < 1 { // bootstrap without any state?
 		return
@@ -179,11 +170,8 @@ func (rf *Raft) readPersist(data []byte) {
 	}
 }
 
-
-//
 // A service wants to switch to snapshot.  Only do so if Raft hasn't
 // have more recent info since it communicate the snapshot on applyCh.
-//
 func (rf *Raft) CondInstallSnapshot(lastIncludedTerm int, lastIncludedIndex int, snapshot []byte) bool {
 
 	// Your code here (2D).
@@ -214,96 +202,94 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	if rf.killed() {
 		return
 	}
-	pos := index - rf.lastIncludeIndex-1
+	pos := index - rf.lastIncludeIndex - 1
 	rf.lastIncludeIndex = index
 	rf.lastIncludeTerm = rf.logs[pos].Term
 	rf.logs = rf.logs[pos+1:]
 	rf.snapshotCmd = snapshot
 }
 
-
-//
 // example RequestVote RPC arguments structure.
 // field names must start with capital letters!
-//
 type VoteErr int64
+
 const (
-	Nil  VoteErr = iota     //投票过程无错误
-	VoteReqOutofDate        //投票消息过期
-	CandidateLogTooOld      //候选人Log不够新
-	VotedThisTerm           //本Term内已经投过票
-	RaftKilled              //Raft程已终止
+	Nil                VoteErr = iota //投票过程无错误
+	VoteReqOutofDate                  //投票消息过期
+	CandidateLogTooOld                //候选人Log不够新
+	VotedThisTerm                     //本Term内已经投过票
+	RaftKilled                        //Raft程已终止
 )
 
 type RequestVoteArgs struct {
 	// Your data here (2A, 2B).
-	Term    		 int
-	Candidate 		 int
-	LastLogIndex 	 int    // 用于选举限制，LogEntry中最后Log的index
-	LastLogTerm      int    // 用于选举限制，LogEntry中最后log的Term
+	Term         int
+	Candidate    int
+	LastLogIndex int // 用于选举限制，LogEntry中最后Log的index
+	LastLogTerm  int // 用于选举限制，LogEntry中最后log的Term
 }
 
-//
 // example RequestVote RPC reply structure.
 // field names must start with capital letters!
-//
 type RequestVoteReply struct {
 	// Your data here (2A).
-	Term     		int
-	VoteGranted     bool     //是否同意投票
-	VoteErr 	    VoteErr  //投票操作错误
+	Term        int
+	VoteGranted bool    //是否同意投票
+	VoteErr     VoteErr //投票操作错误
 }
 
 type AppendEntriesErr int64
+
 const (
-	AppendErr_Nil AppendEntriesErr = iota    // Append操作无错误
-	AppendErr_LogsNotMatch                   // Append操作log不匹配
-	AppendErr_ReqOutofDate                   // Append操作请求过期
-	AppendErr_ReqRepeat                      // Append请求重复
-	AppendErr_Commited                       // Append的log已经commit
-	AppendErr_RaftKilled                     // Raft程序终止
- )
+	AppendErr_Nil          AppendEntriesErr = iota // Append操作无错误
+	AppendErr_LogsNotMatch                         // Append操作log不匹配
+	AppendErr_ReqOutofDate                         // Append操作请求过期
+	AppendErr_ReqRepeat                            // Append请求重复
+	AppendErr_Commited                             // Append的log已经commit
+	AppendErr_RaftKilled                           // Raft程序终止
+)
 
 type AppendEntriesArgs struct {
-	Term   				 int
-	LeaderId  			 int            //Leader标识
-	PrevLogIndex  		 int            //nextIndex前一个index
-	PrevLogTerm    		 int            //nextindex前一个index处的term
-	Logs    			 []LogEntry
-	LeaderCommit  		 int            //Leader已经commit了的Log index
-	LogIndex  			 int
+	Term         int
+	LeaderId     int //Leader标识
+	PrevLogIndex int //nextIndex前一个index
+	PrevLogTerm  int //nextindex前一个index处的term
+	Logs         []LogEntry
+	LeaderCommit int //Leader已经commit了的Log index
+	LogIndex     int
 }
 
 type AppendEntriesReply struct {
-	Term       int
-	Success    bool              // Append操作结果
-	AppendErr  AppendEntriesErr  // Append操作错误情况
-	NotMatchIndex  int           // 当前Term的第一个元素（没有被commit的元素）的index
+	Term          int
+	Success       bool             // Append操作结果
+	AppendErr     AppendEntriesErr // Append操作错误情况
+	NotMatchIndex int              // 当前Term的第一个元素（没有被commit的元素）的index
 }
 
 // snapshot
 type InstallSnapshotRequest struct {
-	Term       		 int
-	LeaderId   		 int
+	Term             int
+	LeaderId         int
 	LastIncludeIndex int
 	LastIncludeTerm  int
 	//Offset         int        // Lab2D不要求实现
-	Data         	 []byte
+	Data []byte
 	//Done         	 bool       // Lab2D不要求实现
 }
 
 type InstallSnapshotErr int64
+
 const (
 	InstallSnapshotErr_Nil InstallSnapshotErr = iota
 	InstallSnapshotErr_ReqOutofDate
 	InstallSnapshotErr_OldIndex
 )
+
 type InstallSnapshotResponse struct {
-	Term         int
-	Err          InstallSnapshotErr
+	Term int
+	Err  InstallSnapshotErr
 }
 
-//
 // example RequestVote RPC handler.
 //
 // 投票过程
@@ -316,7 +302,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		return
 	}
 	rf.mu.Lock()
-	if args.Term < rf.currentTerm {      // 请求term更小，不投票
+	if args.Term < rf.currentTerm { // 请求term更小，不投票
 		reply.Term = rf.currentTerm
 		reply.VoteGranted = false
 		reply.VoteErr = VoteReqOutofDate
@@ -330,9 +316,9 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		rf.voteFor = -1
 	}
 	// 选举限制-参数term小于自身的term
-	candidateLogTermTooOld :=args.LastLogTerm < rf.lastIncludeTerm || (len(rf.logs) > 0 && args.LastLogTerm < rf.logs[len(rf.logs)-1].Term)    // 有log，取最后一条log的term比较 || 无log时参数term小于snapshot的term
+	candidateLogTermTooOld := args.LastLogTerm < rf.lastIncludeTerm || (len(rf.logs) > 0 && args.LastLogTerm < rf.logs[len(rf.logs)-1].Term) // 有log，取最后一条log的term比较 || 无log时参数term小于snapshot的term
 	// 选举限制-term相等，参数index小于自身index
-	candidateLogIndexTooOld :=  (args.LastLogIndex < rf.lastIncludeIndex) || (len(rf.logs) > 0 && args.LastLogTerm == rf.logs[len(rf.logs)-1].Term && args.LastLogIndex < len(rf.logs)+rf.lastIncludeIndex) //有log，取最后一条log的index比较 || 无log时取snapshot的index比较
+	candidateLogIndexTooOld := (args.LastLogIndex < rf.lastIncludeIndex) || (len(rf.logs) > 0 && args.LastLogTerm == rf.logs[len(rf.logs)-1].Term && args.LastLogIndex < len(rf.logs)+rf.lastIncludeIndex) //有log，取最后一条log的index比较 || 无log时取snapshot的index比较
 
 	// 选举限制
 	if candidateLogIndexTooOld || candidateLogTermTooOld {
@@ -380,7 +366,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 }
 
 // 心跳包/log追加
-func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply)  {
+func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
 	if rf.killed() {
 		reply.Term = -1
 		reply.AppendErr = AppendErr_RaftKilled
@@ -405,7 +391,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	// 不匹配
 	if (args.PrevLogIndex != rf.lastIncludeIndex && (args.PrevLogIndex >= len(rf.logs)+rf.lastIncludeIndex+1 || args.PrevLogTerm != rf.logs[args.PrevLogIndex-rf.lastIncludeIndex-1].Term)) ||
-		(args.PrevLogIndex == rf.lastIncludeIndex && args.PrevLogTerm != rf.lastIncludeTerm){
+		(args.PrevLogIndex == rf.lastIncludeIndex && args.PrevLogTerm != rf.lastIncludeTerm) {
 		reply.Term = rf.currentTerm
 		reply.Success = false
 		reply.AppendErr = AppendErr_LogsNotMatch
@@ -419,7 +405,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		reply.Term = rf.currentTerm
 		reply.Success = false
 		reply.AppendErr = AppendErr_Commited
-		reply.NotMatchIndex = rf.lastApplied+1
+		reply.NotMatchIndex = rf.lastApplied + 1
 		rf.persist()
 		rf.mu.Unlock()
 		return
@@ -435,12 +421,11 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		applyMsg := ApplyMsg{
 			CommandValid: true,
 			CommandIndex: rf.lastApplied,
-			Command: rf.logs[rf.lastApplied-rf.lastIncludeIndex-1].Cmd,
+			Command:      rf.logs[rf.lastApplied-rf.lastIncludeIndex-1].Cmd,
 		}
 		rf.applyChan <- applyMsg
 		rf.commitIndex = rf.lastApplied
 	}
-
 
 	reply.Term = rf.currentTerm
 	reply.Success = true
@@ -510,7 +495,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotRequest, reply *InstallSnap
 	rf.mu.Unlock()
 	return
 }
-//
+
 // example code to send a RequestVote RPC to a server.
 // server is the index of the target server in rf.peers[].
 // expects RPC arguments in args.
@@ -560,7 +545,7 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 		return false
 	}
 	rf.mu.Lock()
-	if args.Term < rf.currentTerm {   // 过期请求
+	if args.Term < rf.currentTerm { // 过期请求
 		rf.mu.Unlock()
 		return false
 	}
@@ -588,7 +573,7 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 			rf.persist()
 		}
 		rf.mu.Unlock()
-	case Nil,VotedThisTerm:
+	case Nil, VotedThisTerm:
 		rf.mu.Lock()
 		//根据是否同意投票，收集选票数量
 		if reply.VoteGranted && reply.Term == rf.currentTerm && *voteNum <= len(rf.peers)/2 {
@@ -602,8 +587,8 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *Reques
 			}
 			rf.myStatus = Leader
 			rf.nextIndexs = make([]int, len(rf.peers))
-			for i,_ := range rf.nextIndexs {
-				rf.nextIndexs[i] = len(rf.logs)+rf.lastIncludeIndex+1
+			for i, _ := range rf.nextIndexs {
+				rf.nextIndexs[i] = len(rf.logs) + rf.lastIncludeIndex + 1
 			}
 			rf.timer.Reset(HeartBeatTimeout)
 		}
@@ -647,20 +632,20 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, reply *Ap
 			rf.mu.Unlock()
 			return ok
 		}
-		rf.nextIndexs[server] = args.LogIndex+1
+		rf.nextIndexs[server] = args.LogIndex + 1
 		if *appendNum > len(rf.peers)/2 {
 			*appendNum = 0
-			if (args.LogIndex>rf.lastIncludeIndex && rf.logs[args.LogIndex-rf.lastIncludeIndex-1].Term != rf.currentTerm) ||
-				(args.LogIndex == rf.lastIncludeIndex && rf.lastIncludeTerm != rf.currentTerm){
+			if (args.LogIndex > rf.lastIncludeIndex && rf.logs[args.LogIndex-rf.lastIncludeIndex-1].Term != rf.currentTerm) ||
+				(args.LogIndex == rf.lastIncludeIndex && rf.lastIncludeTerm != rf.currentTerm) {
 				rf.mu.Unlock()
 				return false
 			}
 			for rf.lastApplied < args.LogIndex {
 				rf.lastApplied++
 				applyMsg := ApplyMsg{
-					CommandValid:  true,
-					Command:       rf.logs[rf.lastApplied-rf.lastIncludeIndex-1].Cmd,
-					CommandIndex:  rf.lastApplied,
+					CommandValid: true,
+					Command:      rf.logs[rf.lastApplied-rf.lastIncludeIndex-1].Cmd,
+					CommandIndex: rf.lastApplied,
 				}
 				rf.applyChan <- applyMsg
 				rf.commitIndex = rf.lastApplied
@@ -734,7 +719,7 @@ func (rf *Raft) sendInstallSnapshot(server int, args *InstallSnapshotRequest, re
 			rf.timer.Reset(rf.voteTimeout)
 			rf.persist()
 		}
-		rf.nextIndexs[server] = args.LastIncludeIndex+1
+		rf.nextIndexs[server] = args.LastIncludeIndex + 1
 	case InstallSnapshotErr_OldIndex:
 		if reply.Term > rf.currentTerm {
 			rf.myStatus = Follower
@@ -743,15 +728,14 @@ func (rf *Raft) sendInstallSnapshot(server int, args *InstallSnapshotRequest, re
 			rf.timer.Reset(rf.voteTimeout)
 			rf.persist()
 		}
-		rf.nextIndexs[server] = len(rf.logs)+rf.lastIncludeIndex+1
+		rf.nextIndexs[server] = len(rf.logs) + rf.lastIncludeIndex + 1
 	case InstallSnapshotErr_ReqOutofDate:
 	}
-
 
 	rf.mu.Unlock()
 	return false
 }
-//
+
 // the service using Raft (e.g. a k/v server) wants to start
 // agreement on the next command to be appended to Raft's log. if this
 // server isn't the leader, returns false. otherwise start the
@@ -764,7 +748,6 @@ func (rf *Raft) sendInstallSnapshot(server int, args *InstallSnapshotRequest, re
 // if it's ever committed. the second return value is the current
 // term. the third return value is true if this server believes it is
 // the leader.
-//
 func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	index := -1
 	term := -1
@@ -781,10 +764,10 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		rf.mu.Unlock()
 		return index, term, isLeader
 	}
-	logEntry := LogEntry{Term: rf.currentTerm, Cmd:  command}
+	logEntry := LogEntry{Term: rf.currentTerm, Cmd: command}
 	rf.logs = append(rf.logs, logEntry)
 
-	index = len(rf.logs)+rf.lastIncludeIndex
+	index = len(rf.logs) + rf.lastIncludeIndex
 	term = rf.currentTerm
 	rf.persist()
 	rf.mu.Unlock()
@@ -792,7 +775,6 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	return index, term, isLeader
 }
 
-//
 // the tester doesn't halt goroutines created by Raft after each test,
 // but it does call the Kill() method. your code can use killed() to
 // check whether Kill() has been called. the use of atomic avoids the
@@ -802,7 +784,6 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 // up CPU time, perhaps causing later tests to fail and generating
 // confusing debug output. any goroutine with a long-running loop
 // should call killed() to check whether it should stop.
-//
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
 	// Your code here, if desired.
@@ -837,22 +818,22 @@ func (rf *Raft) ticker() {
 				fallthrough
 			case Candidate:
 				// 进行选举
-				rf.currentTerm+=1
+				rf.currentTerm += 1
 				rf.voteFor = rf.me
 				// 每轮选举开始时，重新设置选举超时
-				rf.voteTimeout = time.Duration(rand.Intn(150)+200)*time.Millisecond
+				rf.voteTimeout = time.Duration(rand.Intn(150)+200) * time.Millisecond
 				voteNum := 1
 				rf.persist()
 				rf.timer.Reset(rf.voteTimeout)
 				// 构造msg
-				for i,_ := range rf.peers {
+				for i, _ := range rf.peers {
 					if i == rf.me {
 						continue
 					}
 					voteArgs := &RequestVoteArgs{
 						Term:         rf.currentTerm,
 						Candidate:    rf.me,
-						LastLogIndex: len(rf.logs)+rf.lastIncludeIndex,
+						LastLogIndex: len(rf.logs) + rf.lastIncludeIndex,
 						LastLogTerm:  rf.lastIncludeTerm,
 					}
 					if len(rf.logs) > 0 {
@@ -867,7 +848,7 @@ func (rf *Raft) ticker() {
 				appendNum := 1
 				rf.timer.Reset(HeartBeatTimeout)
 				// 构造msg
-				for i,_ := range rf.peers {
+				for i, _ := range rf.peers {
 					if i == rf.me {
 						continue
 					}
@@ -878,7 +859,7 @@ func (rf *Raft) ticker() {
 						PrevLogTerm:  0,
 						Logs:         nil,
 						LeaderCommit: rf.commitIndex,
-						LogIndex:     len(rf.logs)+rf.lastIncludeIndex,
+						LogIndex:     len(rf.logs) + rf.lastIncludeIndex,
 					}
 					//installSnapshot，如果rf.nextIndex[i]小于等lastCludeIndex,则发送snapShot
 					if rf.nextIndexs[i] <= rf.lastIncludeIndex {
@@ -895,7 +876,7 @@ func (rf *Raft) ticker() {
 						continue
 					}
 					for rf.nextIndexs[i] > rf.lastIncludeIndex {
-						appendEntriesArgs.PrevLogIndex = rf.nextIndexs[i]-1
+						appendEntriesArgs.PrevLogIndex = rf.nextIndexs[i] - 1
 						if appendEntriesArgs.PrevLogIndex >= len(rf.logs)+rf.lastIncludeIndex+1 {
 							rf.nextIndexs[i]--
 							continue
@@ -908,7 +889,7 @@ func (rf *Raft) ticker() {
 						break
 					}
 					if rf.nextIndexs[i] < len(rf.logs)+rf.lastIncludeIndex+1 {
-						appendEntriesArgs.Logs = make([]LogEntry,appendEntriesArgs.LogIndex+1-rf.nextIndexs[i])
+						appendEntriesArgs.Logs = make([]LogEntry, appendEntriesArgs.LogIndex+1-rf.nextIndexs[i])
 						copy(appendEntriesArgs.Logs, rf.logs[rf.nextIndexs[i]-rf.lastIncludeIndex-1:appendEntriesArgs.LogIndex-rf.lastIncludeIndex])
 					}
 
@@ -921,7 +902,6 @@ func (rf *Raft) ticker() {
 	}
 }
 
-//
 // the service or tester wants to create a Raft server. the ports
 // of all the Raft servers (including this one) are in peers[]. this
 // server's port is peers[me]. all the servers' peers[] arrays
@@ -931,7 +911,6 @@ func (rf *Raft) ticker() {
 // tester or service expects Raft to send ApplyMsg messages.
 // Make() must return quickly, so it should start goroutines
 // for any long-running work.
-//
 func Make(peers []*labrpc.ClientEnd, me int,
 	persister *Persister, applyCh chan ApplyMsg) *Raft {
 	rf := &Raft{}
@@ -943,9 +922,9 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.myStatus = Follower
 	rf.voteFor = -1
 	rand.Seed(time.Now().UnixNano())
-	rf.voteTimeout = time.Duration(rand.Intn(150)+200)*time.Millisecond
-	rf.currentTerm, rf.commitIndex, rf.lastApplied = 0,0,0
-	rf.nextIndexs, rf.matchIndexs, rf.logs = nil, nil, []LogEntry{{0,nil}}
+	rf.voteTimeout = time.Duration(rand.Intn(150)+200) * time.Millisecond
+	rf.currentTerm, rf.commitIndex, rf.lastApplied = 0, 0, 0
+	rf.nextIndexs, rf.matchIndexs, rf.logs = nil, nil, []LogEntry{{0, nil}}
 	rf.timer = time.NewTicker(rf.voteTimeout)
 	rf.applyChan = applyCh
 
@@ -958,7 +937,6 @@ func Make(peers []*labrpc.ClientEnd, me int,
 
 	// start ticker goroutine to start elections
 	go rf.ticker()
-
 
 	return rf
 }
