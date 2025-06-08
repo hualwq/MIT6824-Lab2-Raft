@@ -36,7 +36,7 @@ func (ps *Persister) SaveRaftState(state []byte) {
 func (ps *Persister) ReadRaftState() []byte {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
-	return ps.raftstate
+	return clone(ps.raftstate)
 }
 
 func (ps *Persister) RaftStateSize() int {
